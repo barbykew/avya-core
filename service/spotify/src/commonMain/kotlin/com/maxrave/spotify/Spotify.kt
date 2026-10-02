@@ -5,6 +5,8 @@ import com.maxrave.spotify.model.response.spotify.CanvasResponse
 import com.maxrave.spotify.model.response.spotify.ClientTokenResponse
 import com.maxrave.spotify.model.response.spotify.PersonalTokenResponse
 import com.maxrave.spotify.model.response.spotify.SpotifyLyricsResponse
+import com.maxrave.spotify.model.response.spotify.playlist.SpotifyPlaylistResponse
+import com.maxrave.spotify.model.response.spotify.playlist.SpotifyPlaylistTracksPage
 import com.maxrave.spotify.model.response.spotify.search.SpotifySearchResponse
 import io.ktor.client.call.body
 import io.ktor.client.engine.ProxyBuilder
@@ -73,6 +75,26 @@ class Spotify {
         spotifyClient
             .searchSpotifyTrack(query, authToken, clientToken)
             .body<SpotifySearchResponse>()
+    }
+
+    /** A playlist with its first page of tracks. Needs only the personal (web session) token. */
+    suspend fun getSpotifyPlaylist(
+        playlistId: String,
+        authToken: String,
+    ) = runCatching {
+        spotifyClient
+            .getSpotifyPlaylist(playlistId, authToken)
+            .body<SpotifyPlaylistResponse>()
+    }
+
+    /** The page at [url], which is a `next` link taken from a previous page. */
+    suspend fun getSpotifyPlaylistTracksPage(
+        url: String,
+        authToken: String,
+    ) = runCatching {
+        spotifyClient
+            .getSpotifyPlaylistTracksPage(url, authToken)
+            .body<SpotifyPlaylistTracksPage>()
     }
 
     suspend fun getSpotifyLyrics(

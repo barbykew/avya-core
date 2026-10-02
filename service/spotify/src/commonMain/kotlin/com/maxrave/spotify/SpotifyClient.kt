@@ -181,6 +181,49 @@ class SpotifyClient {
         header("App-platform", "WebPlayer")
     }
 
+    /**
+     * A playlist and its first page of tracks, from the public Web API.
+     *
+     * Uses `api.spotify.com` rather than the `api-partner` pathfinder endpoint the search below
+     * goes through: pathfinder queries are pinned to a persisted-query hash that Spotify rotates,
+     * while `/v1/playlists` is documented and stable. An import is long enough that a hash
+     * rotation partway through would be a bad failure.
+     *
+     * `fields` trims the response to what the importer reads — a 100-track page is otherwise a
+     * large amount of album and artist detail that is parsed and discarded.
+     */
+    suspend fun getSpotifyPlaylist(
+        playlistId: String,
+        authToken: String,
+    ) = jsonClient.get("https://api.spotify.com/v1/playlists/$playlistId") {
+        userAgent(USER_AGENT)
+        header("Authorization", "Bearer $authToken")
+        header(HttpHeaders.Accept, ContentType.Application.Json.toString())
+        parameter(
+            "fields",
+            "id,name,images,tracks(total,next,items(track(id,name,duration_ms,is_local,artists(name),album(name,images))))",
+        )
+    }
+
+    /**
+     * The next page of a playlist's tracks.
+     *
+     * [url] is the absolute `next` link from the previous page, so paging is Spotify's to drive.
+     * `fields` has to be re-applied because it is not carried over into that link.
+     */
+    suspend fun getSpotifyPlaylistTracksPage(
+        url: String,
+        authToken: String,
+    ) = jsonClient.get(url) {
+        userAgent(USER_AGENT)
+        header("Authorization", "Bearer $authToken")
+        header(HttpHeaders.Accept, ContentType.Application.Json.toString())
+        parameter(
+            "fields",
+            "total,next,items(track(id,name,duration_ms,is_local,artists(name),album(name,images)))",
+        )
+    }
+
     suspend fun searchSpotifyTrack(
         q: String,
         authToken: String,

@@ -1217,6 +1217,23 @@ internal class DataStoreManagerImpl(
         }
     }
 
+    /**
+     * Defaults to FALSE so a fresh install sees the welcome screen once. The app treats any
+     * stored value as "already seen", so an upgrade that has the key set never shows it again.
+     */
+    override val jennyWelcomeSeen =
+        settingsDataStore.data.map { preferences ->
+            preferences[JENNY_WELCOME_SEEN] ?: FALSE
+        }
+
+    override suspend fun setJennyWelcomeSeen(seen: Boolean) {
+        withContext(Dispatchers.IO) {
+            settingsDataStore.edit { settings ->
+                settings[JENNY_WELCOME_SEEN] = if (seen) TRUE else FALSE
+            }
+        }
+    }
+
     override val autoCheckForUpdates =
         settingsDataStore.data.map { preferences ->
             preferences[AUTO_CHECK_FOR_UPDATES] ?: TRUE
@@ -1864,6 +1881,7 @@ internal class DataStoreManagerImpl(
         val KEEP_YOUTUBE_PLAYLIST_OFFLINE = stringPreferencesKey("keep_youtube_playlist_offline")
         val COMBINE_LOCAL_AND_YOUTUBE_LIKED = stringPreferencesKey("combine_local_and_youtube_liked")
         val SHOULD_SHOW_LOG_IN_REQUIRED_ALERT = stringPreferencesKey("should_show_log_in_required_alert")
+        val JENNY_WELCOME_SEEN = stringPreferencesKey("jenny_welcome_seen")
         val AUTO_CHECK_FOR_UPDATES = stringPreferencesKey("auto_check_for_updates")
         val UPDATE_CHANNEL = stringPreferencesKey("update_channel")
         val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")

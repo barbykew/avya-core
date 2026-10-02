@@ -372,6 +372,11 @@ interface DataStoreManager {
 
     suspend fun setShouldShowLogInRequiredAlert(shouldShow: Boolean)
 
+    /** Whether the first-run welcome screen has been dismissed. */
+    val jennyWelcomeSeen: Flow<String>
+
+    suspend fun setJennyWelcomeSeen(seen: Boolean)
+
     val autoCheckForUpdates: Flow<String>
 
     suspend fun setAutoCheckForUpdates(autoCheck: Boolean)
