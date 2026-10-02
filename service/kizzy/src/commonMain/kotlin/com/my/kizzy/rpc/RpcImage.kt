@@ -18,6 +18,15 @@ package com.my.kizzy.rpc
 sealed class RpcImage {
     abstract suspend fun resolveImage(resolveExternalImage: suspend (String) -> String?): String?
 
+    /**
+     * An image uploaded to the Discord application itself, addressed by its asset name.
+     * Unlike [DiscordImage] this must NOT be given the `mp:` media-proxy prefix: that form is
+     * only for CDN attachment paths, and Discord will not resolve an application asset through it.
+     */
+    class AppAsset(val name: String) : RpcImage() {
+        override suspend fun resolveImage(resolveExternalImage: suspend (String) -> String?): String = name
+    }
+
     class DiscordImage(val image: String) : RpcImage() {
         override suspend fun resolveImage(resolveExternalImage: suspend (String) -> String?): String {
             return if (image.startsWith("http")) image else "mp:${image}"
