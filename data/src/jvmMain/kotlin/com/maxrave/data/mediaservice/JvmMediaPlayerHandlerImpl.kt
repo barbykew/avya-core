@@ -71,7 +71,7 @@ import com.maxrave.domain.utils.toListName
 import com.maxrave.domain.utils.toSongEntity
 import com.maxrave.domain.utils.toTrack
 import com.maxrave.logger.Logger
-import com.my.kizzy.DiscordRPC
+import com.maxrave.data.discord.DiscordIpcPresence
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -223,7 +223,7 @@ class JvmMediaPlayerHandlerImpl(
     override val player: MediaPlayerInterface = getKoin().get()
 
     @Volatile
-    private var discordRPC: DiscordRPC? = null
+    private var discordRPC: DiscordIpcPresence? = null
 
     /**
      * Built here rather than injected: it needs nothing this handler does not already hold, and
@@ -613,22 +613,21 @@ class JvmMediaPlayerHandlerImpl(
                 }
             val discordRPCEnabledJob =
                 launch {
-                    // Run Rich Presence only when enabled AND logged in (non-blank token); a blank-token
-                    // DiscordRPC loops reconnect forever (issue #2157). Combining both flows also tears
-                    // the RPC down as soon as the token is cleared on logout.
-                    combine(
-                        dataStoreManager.richPresenceEnabled,
-                        dataStoreManager.discordToken,
-                    ) { enabled, token ->
-                        enabled == TRUE && token.isNotBlank()
-                    }.distinctUntilChanged()
+                    // The desktop presence goes over Discord's local IPC socket, so there is no
+                    // token to gate on any more — authority comes from the Discord client the user
+                    // is already signed in to. The old token check is gone with it; presence now
+                    // follows the setting alone, and simply does nothing when Discord is not
+                    // running locally.
+                    dataStoreManager.richPresenceEnabled
+                        .map { it == TRUE }
+                        .distinctUntilChanged()
                         .collectLatest { shouldRun ->
                             if (shouldRun) {
                                 // Both branches below are independently idempotent: a toggle
                                 // on→off→on race must not skip (re)creating whichever of
                                 // discordRPC/rpcSenderJob dropped out (#Fix 6).
                                 if (discordRPC == null) {
-                                    discordRPC = DiscordRPC(dataStoreManager.discordToken.first())
+                                    discordRPC = DiscordIpcPresence().also { it.connect() }
                                 }
                                 if (rpcSenderJob?.isActive != true) {
                                     // One sender for the whole RPC lifetime: collectLatest cancels an
@@ -664,8 +663,8 @@ class JvmMediaPlayerHandlerImpl(
                                 withContext(NonCancellable) {
                                     rpcSenderJob?.cancel()
                                     rpcSenderJob = null
-                                    if (discordRPC?.isRpcRunning() == true) {
-                                        discordRPC?.closeRPC()
+                                    if (discordRPC?.isRunning() == true) {
+                                        discordRPC?.close()
                                     }
                                     discordRPC = null
                                     // Drop any retained snapshot so a relaunched sender (fresh
@@ -2615,8 +2614,8 @@ class JvmMediaPlayerHandlerImpl(
         clearMacOSNowPlayingInfo()
         macOSMediaIntegration?.release()
         try {
-            if (discordRPC?.isRpcRunning() == true) {
-                discordRPC?.closeRPC()
+            if (discordRPC?.isRunning() == true) {
+                discordRPC?.close()
             }
             discordRPC = null
             // Save state first
@@ -2737,8 +2736,8 @@ class JvmMediaPlayerHandlerImpl(
             stopProgressUpdate()
             mayBeSaveRecentSong()
             mayBeSavePlaybackState()
-            if (discordRPC?.isRpcRunning() == true) {
-                discordRPC?.closeRPC()
+            if (discordRPC?.isRunning() == true) {
+                discordRPC?.close()
             }
         }
         updateNextPreviousTrackAvailability()
